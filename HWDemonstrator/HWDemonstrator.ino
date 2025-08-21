@@ -1,3 +1,17 @@
+// Version 1.0.0
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// (c) 2024-2025 Quantinuum LLC. All Rights Reserved.
+// This software and all information and expression are the property of
+// Quantinuum LLC, are Quantinuum LLC Confidential & Proprietary,
+// contain trade secrets and may not, in whole or in part, be licensed,
+// used, duplicated, disclosed, or reproduced for any purpose without prior
+// written permission of Quantinuum LLC.
+//
+/////////////////////////////////////////////////////////////////////////////
+
+
 #include <Adafruit_NeoPixel.h>
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
