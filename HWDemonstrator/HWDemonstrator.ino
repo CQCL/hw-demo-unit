@@ -1,16 +1,14 @@
+/*****************************************************************************
+*
+* (c) 2024-2025 @ Quantinuum LLC. All Rights Reserved.
+* This software and all information and expression are the property of
+* Quantinuum LLC, are Quantinuum LLC Confidential & Proprietary,
+* contain trade secrets and may not, in whole or in part, be licensed,
+* used, duplicated, disclosed, or reproduced for any purpose without prior
+* written permission of Quantinuum LLC.
+*
+*****************************************************************************/
 // Version 1.0.0
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// (c) 2024-2025 Quantinuum LLC. All Rights Reserved.
-// This software and all information and expression are the property of
-// Quantinuum LLC, are Quantinuum LLC Confidential & Proprietary,
-// contain trade secrets and may not, in whole or in part, be licensed,
-// used, duplicated, disclosed, or reproduced for any purpose without prior
-// written permission of Quantinuum LLC.
-//
-/////////////////////////////////////////////////////////////////////////////
-
 
 #include <Adafruit_NeoPixel.h>
 #include <Wire.h>
@@ -327,33 +325,39 @@ void allWipeClear() {
 }
 
 void load() {
-  colorWipeRing(97, 0, 200);
   laserPulse(97, 0, 200, 135, 1);
+  colorWipeRing(97, 0, 200);
+  
   runButton();
 }
 void initialize() {
-  colorWipeRing(255, 0, 0);
   laserPulse(255, 0, 0, 90, 1);
+  colorWipeRing(255, 0, 0);
+  
   runButton();
 }
 void cool() {
-  colorWipeRing(0, 0, 150);
   simultaneousPulse(0, 0, 255, 135, 0, 0, 255, 315, 1);
+  colorWipeRing(0, 0, 150);
+  
   runButton();
 }
 void TQGate() {
-  colorWipeRing(0, 255, 0);
   simultaneousPulse(0, 255, 0, 135, 0, 255, 0, 45, 1);
+  colorWipeRing(0, 255, 0);
+  
   runButton();
 }
 void SQGate() {
-  colorWipeRing(0, 255, 0);
   laserPulse(0, 255, 0, 225, 1);
+  colorWipeRing(0, 255, 0);
+  
   runButton();
 }
 void measure() {
-  colorWipeRing(255, 225, 0);
   laserPulse(255, 225, 0, 270, 1);
+  colorWipeRing(255, 225, 0);
+  
   runButton();
 }
 void runButton() {

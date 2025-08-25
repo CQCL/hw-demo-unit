@@ -1,0 +1,4 @@
+Change log for HW Demonstrator
+
+2025-03-19  v1.0.0
+- Demo code that includes idle sequence and gates
