@@ -1,4 +1,8 @@
 Change log for HW Demonstrator
 
+2025-08-26 v1.1.0
+- Button matches laser and other buttons turn off when pressed
+- Refactored code
+
 2025-03-19  v1.0.0
 - Demo code that includes idle sequence and gates

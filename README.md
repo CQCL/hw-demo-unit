@@ -1,5 +1,12 @@
 # hw-demo-unit
-Arduino code for marketing hardware demo unit
+This repo contains Arduino code for the hardware demo unit.
+
+# Versioning
+Commits will be tagged with versions when they are pushed to this repository. The changelog will track the differences in versions.
+
+Custom features for specific projects will be stored in branches. They may include different features associated with each version.
+
+The `deployments.yaml` file will store information about which software version is installed on each device by serial number. This file needs to be updated when code is loaded onto a device.
 
 # First Time Startup
 1. Install Arduino IDE (download availible [here](https://www.arduino.cc/en/software/) )

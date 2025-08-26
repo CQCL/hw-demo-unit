@@ -8,7 +8,7 @@
 * written permission of Quantinuum LLC.
 *
 *****************************************************************************/
-// Version 1.0.0
+// Version 1.1.0
 
 #include <Adafruit_NeoPixel.h>
 #include <Wire.h>
@@ -16,55 +16,94 @@
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
-// INTIALIZING DIGITAL IN/OUT PINS
+// INITIALIZING DIGITAL IN/OUT PINS (BUTTONS)
 const int LOAD_PIN = 22;        // 1
 const int INITIALIZE_PIN = 23;  // 2
 const int COOL_PIN = 24;        // 3
-const int SQGATE_PIN = 26;      // 5
 const int TQGATE_PIN = 25;      // 4
+const int SQGATE_PIN = 26;      // 5
 const int MEASURE_PIN = 27;     // 6
-const int BUTTON6_RED_PIN = 9;
+const int BUTTON6_RED_PIN = 9;  // button 6 is wired to different board and requires more pins
 const int BUTTON6_GREEN_PIN = 10;
 const int BUTTON6_BLUE_PIN = 11;
 
-const float RED_SCALE = 0.8;  // correcting for red overpower
+// INITIALIZING LED STRIP INFO
+enum Strips {
+  STRIP45,
+  STRIP90,
+  STRIP135,
+  STRIP225,
+  STRIP270,
+  STRIP315,
+  RING
+};
+const int stripPins[] = { 2, 3, 4, 5, 6, 7, 8 };
+const int numPixels[] = { 145, 145, 145, 145, 145, 145, 60 };
+Adafruit_NeoPixel *stripList[7];
 
-// INTITIALIZING LED STRIPS
-Adafruit_NeoPixel strip270 = Adafruit_NeoPixel(145, 6, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip315 = Adafruit_NeoPixel(145, 7, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip90 = Adafruit_NeoPixel(145, 3, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip45 = Adafruit_NeoPixel(145, 2, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip135 = Adafruit_NeoPixel(145, 4, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel strip225 = Adafruit_NeoPixel(145, 5, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel ring = Adafruit_NeoPixel(60, 8, NEO_GRB + NEO_KHZ800);
-
-// INITIALIZING INTERRUPT FLAGS FOR BUTTONS
-bool loadFlag = false;
-bool initializeFlag = false;
-bool measureFlag = false;
-bool SQGateFlag = false;
-bool TQGateFlag = false;
-bool coolFlag = false;
+// INITIALIZE DEVICE STATES
+enum DeviceState {
+  IDLE,
+  LOAD,
+  INITIALIZE,
+  COOL,
+  SQGATE,
+  TQGATE,
+  MEASURE,
+  NONE
+};
 
 // INITIALIZING CONTROL VARIABLES
-bool delayVar = false;
-bool clear = false;
-bool breakLoop = false;
 const int DELAY = 500;
+DeviceState stateChangeRequest = NONE;
+DeviceState currentState = IDLE;
+
+int buttonColors[6][3] = {
+  { 0, 255, 150 },    // TEAL
+  { 255, 255, 255 },  // WHITE
+  { 240, 65, 90 },    // PINK
+  { 50, 0, 255 },     // PURPLE
+  { 255, 130, 50 },   // ORANGE
+  { 50, 245, 215 },   // LIGHT TEAL
+};
+
+int laserColors[8][3] = {
+  { 97, 0, 200 },    // PURPLE
+  { 255, 0, 0 },     // RED
+  { 0, 0, 255 },     // BLUE
+  { 0, 255, 0 },     // GREEN
+  { 0, 255, 0 },     // GREEN
+  { 255, 225, 0 },   // YELLOW
+  { 0, 0, 0 },       // BLACK
+  { 255, 255, 255 }  // WHITE
+};
+
+int idleColors[7][3] = {
+  { 0, 150, 100 },    // GREEN
+  { 170, 50, 0 },     // RED
+  { 75, 0, 200 },     // INDIGO
+  { 115, 250, 200 },  // LIGHT GREEN
+  { 170, 0, 50 },     // RED
+  { 225, 246, 242 },  // PALE GREEN
+  { 170, 170, 170 },  // GREY
+};
 
 void setup() {
 
   pwm.begin();
   pwm.setPWMFreq(1000);
-  Serial.begin(9600);  // necessary if using serial prints for debugging
+  Serial.begin(9600);
 
-  // SETTING BUTTON PINMODES
+  // SETTING BUTTON PIN MODES
   pinMode(LOAD_PIN, INPUT_PULLUP);
   pinMode(INITIALIZE_PIN, INPUT_PULLUP);
   pinMode(MEASURE_PIN, INPUT_PULLUP);
   pinMode(SQGATE_PIN, INPUT_PULLUP);
   pinMode(TQGATE_PIN, INPUT_PULLUP);
   pinMode(COOL_PIN, INPUT_PULLUP);
+  pinMode(BUTTON6_RED_PIN, OUTPUT);
+  pinMode(BUTTON6_GREEN_PIN, OUTPUT);
+  pinMode(BUTTON6_BLUE_PIN, OUTPUT);
 
   // ATTACH INTERRUPTS FOR DYNAMIC BUTTON HANDLING
   attachInterrupt(digitalPinToInterrupt(LOAD_PIN), loadInterrupt, FALLING);
@@ -74,323 +113,250 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(TQGATE_PIN), TQGateInterrupt, FALLING);
   attachInterrupt(digitalPinToInterrupt(MEASURE_PIN), measureInterrupt, FALLING);
 
-  // ensure all buttons flags are still false after attaching interrupts
-  loadFlag = false;
-  initializeFlag = false;
-  measureFlag = false;
-  SQGateFlag = false;
-  TQGateFlag = false;
-  coolFlag = false;
-
   // INITIALIZING BUTTON COLORS
-  setLEDColor(0, 0, 255, 150);    // LED 1: Teal (channels 0, 1, 2)
-  setLEDColor(1, 255, 255, 255);  // LED 2: White (channels 3, 4, 5)
-  setLEDColor(2, 240, 65, 90);    // LED 3: Pink (channels 6, 7, 8)
-  setLEDColor(3, 50, 0, 255);     // LED 4: Purple (channels 9, 10, 11)
-  setLEDColor(4, 255, 130, 50);   // LED 5: Orange (channels 12, 13, 14)
+  defaultButtons();
 
-  // configure color of button 6, light teal
-  pinMode(BUTTON6_RED_PIN, OUTPUT);
-  pinMode(BUTTON6_GREEN_PIN, OUTPUT);
-  pinMode(BUTTON6_BLUE_PIN, OUTPUT);
-  analogWrite(BUTTON6_RED_PIN, 175); // note color is inverted
-  analogWrite(BUTTON6_GREEN_PIN, 10);
-  analogWrite(BUTTON6_BLUE_PIN, 40); 
+  // INITIALIZING LED STRIPS
+  stripList[STRIP45] = new Adafruit_NeoPixel(numPixels[STRIP45], stripPins[STRIP45], NEO_GRB + NEO_KHZ800);
+  stripList[STRIP90] = new Adafruit_NeoPixel(numPixels[STRIP90], stripPins[STRIP90], NEO_GRB + NEO_KHZ800);
+  stripList[STRIP135] = new Adafruit_NeoPixel(numPixels[STRIP135], stripPins[STRIP135], NEO_GRB + NEO_KHZ800);
+  stripList[STRIP225] = new Adafruit_NeoPixel(numPixels[STRIP225], stripPins[STRIP225], NEO_GRB + NEO_KHZ800);
+  stripList[STRIP270] = new Adafruit_NeoPixel(numPixels[STRIP270], stripPins[STRIP270], NEO_GRB + NEO_KHZ800);
+  stripList[STRIP315] = new Adafruit_NeoPixel(numPixels[STRIP315], stripPins[STRIP315], NEO_GRB + NEO_KHZ800);
+  stripList[RING] = new Adafruit_NeoPixel(numPixels[RING], stripPins[RING], NEO_GRB + NEO_KHZ800);
 
-  // INTIALIZING LED STRIPS
-  strip270.begin();
-  strip270.show();
-  strip270.setBrightness(120);
+  for (int i = 0; i < 7; i++) {
+    stripList[i]->begin();
+    stripList[i]->show();
+    stripList[i]->setBrightness(120);
+  }
+  stripList[RING]->setBrightness(170);
 
-  strip315.begin();
-  strip315.show();
-  strip315.setBrightness(120);
-
-  strip225.begin();
-  strip225.show();
-  strip225.setBrightness(120);
-
-  strip45.begin();
-  strip45.show();
-  strip45.setBrightness(120);
-
-  strip90.begin();
-  strip90.show();
-  strip90.setBrightness(120);
-
-  strip135.begin();
-  strip135.show();
-  strip135.setBrightness(120);
-
-  ring.begin();
-  ring.show();
-  ring.setBrightness(170);
+  currentState = IDLE;
 }
 
 void loop() {
 
-  //CLEAR EVERYTHING
-  if (clear) {
-    allClear();
-    clear = false;
-  }
+  if (stateChangeRequest != NONE) {
+    currentState = stateChangeRequest;
+    stateChangeRequest = NONE;
 
-  if (delayVar) {
+    // clear all pixels before switching states
+    for (int i = 0; i < 7; i++) {
+      stripList[i]->clear();
+      stripList[i]->show();
+    }
     delay(DELAY);
-    delayVar = false;
   }
 
-  // CHECK FOR INTERRUPT FLAGS
-  if (loadFlag) {
-    load();
-    loadFlag = false;
+  switch (currentState) {
+    case IDLE:
+      delay(DELAY);
+      colorWipeRing(idleColors[6]);
+      idle();
+      break;
+    case LOAD:
+      load();
+      break;
+    case INITIALIZE:
+      initialize();
+      break;
+    case COOL:
+      cool();
+      break;
+    case SQGATE:
+      SQGate();
+      break;
+    case TQGATE:
+      TQGate();
+      break;
+    case MEASURE:
+      measure();
+      break;
   }
 
-  if (initializeFlag) {
-    initialize();
-    initializeFlag = false;
-  }
-
-  if (coolFlag) {
-    cool();
-    coolFlag = false;
-  }
-
-  if (SQGateFlag) {
-    SQGate();
-    SQGateFlag = false;
-  }
-
-  if (TQGateFlag) {
-    TQGate();
-    TQGateFlag = false;
-  }
-
-  if (measureFlag) {
-    measure();
-    measureFlag = false;
-  }
-
-  if (delayVar) {
-    delay(DELAY);
-    delayVar = false;
-  }
-
-  // IDLE SEQUENCE
-  colorWipeRing(170, 170, 170);
-  idle();
-  breakLoop = false;
+  currentState = IDLE;
 }
 
-void setLEDColor(int buttonNum, int red, int green, int blue) {
-  if (buttonNum < 0 || buttonNum > 4) return;  // Validate button number
+
+/////////////////////////////////////////////////////////////////////
+// Functions for LED behaviors
+/////////////////////////////////////////////////////////////////////
+
+void setButtonColor(int buttonNum, int color[]) {
+  if (buttonNum < 1 || buttonNum > 5) return;  // Validate button number
   // Channel assignments: 3 channels per LED (R, G, B)
-  int redChannel = buttonNum * 3;        // 0, 3, 6, 9, 12
-  int greenChannel = buttonNum * 3 + 1;  // 1, 4, 7, 10, 13
-  int blueChannel = buttonNum * 3 + 2;   // 2, 5, 8, 11, 14
-  int scaledRed = (int)(red * RED_SCALE);
+  int redChannel = (buttonNum - 1) * 3;        // 0, 3, 6, 9, 12
+  int greenChannel = (buttonNum - 1) * 3 + 1;  // 1, 4, 7, 10, 13
+  int blueChannel = (buttonNum - 1) * 3 + 2;   // 2, 5, 8, 11, 14
+
+  int scaledRed = (int)(color[0] * 0.8);
   int redPWM = map(255 - scaledRed, 0, 255, 0, 4095);
-  int greenPWM = map(255 - green, 0, 255, 0, 4095);
-  int bluePWM = map(255 - blue, 0, 255, 0, 4095);
+  int greenPWM = map(255 - color[1], 0, 255, 0, 4095);
+  int bluePWM = map(255 - color[2], 0, 255, 0, 4095);
+
   pwm.setPWM(redChannel, 0, redPWM);
   pwm.setPWM(greenChannel, 0, greenPWM);
   pwm.setPWM(blueChannel, 0, bluePWM);
 }
 
-void colorWipeAll(int r, int g, int b) {
+void setButtonSix(int color[]) {
+  if (color == laserColors[6]) {
+    pinMode(BUTTON6_RED_PIN, INPUT);
+    pinMode(BUTTON6_GREEN_PIN, INPUT);
+    pinMode(BUTTON6_BLUE_PIN, INPUT);
+  } else {
+    pinMode(BUTTON6_RED_PIN, OUTPUT);
+    pinMode(BUTTON6_GREEN_PIN, OUTPUT);
+    pinMode(BUTTON6_BLUE_PIN, OUTPUT);
+    analogWrite(BUTTON6_RED_PIN, 255-color[0]);
+    analogWrite(BUTTON6_GREEN_PIN, 255-color[1]);
+    analogWrite(BUTTON6_BLUE_PIN, 255-color[2]);
+  }
+}
+
+void spotlightButton(int buttonNum) {
+  if (buttonNum < 1 || buttonNum > 6) return;
+  for (int i = 1; i < 6; i++) {
+    if (i == buttonNum) {
+      setButtonColor(i, laserColors[i - 1]);
+    } else {
+      setButtonColor(i, laserColors[6]);
+    }
+  }
+  if (buttonNum == 6) {
+    int color[] = {145, 225, 0};
+    setButtonSix(color);
+  } else {
+    setButtonSix(laserColors[6]);
+  }
+}
+
+void defaultButtons() {
+  for (int i = 1; i < 6; i++) {
+    setButtonColor(i, buttonColors[i - 1]);
+  }
+  setButtonSix(buttonColors[5]);
+}
+
+void colorWipeStrips(int color[]) {
   for (int i = 150; i >= 0; i--) {
-    if (breakLoop) { break; }
-    strip45.setPixelColor(i, r, g, b);
-    strip45.show();
-    strip225.setPixelColor(i, r, g, b);
-    strip225.show();
-    strip90.setPixelColor(i, r, g, b);
-    strip90.show();
-    strip270.setPixelColor(i, r, g, b);
-    strip270.show();
-    strip135.setPixelColor(i, r, g, b);
-    strip135.show();
-    strip315.setPixelColor(i, r, g, b);
-    strip315.show();
+    if (stateChangeRequest != NONE) { return; }
+    for (int j = 0; j < 6; j++) {
+      stripList[j]->setPixelColor(i, color[0], color[1], color[2]);
+      stripList[j]->show();
+    }
   }
 }
 
-void simultaneousPulse(int r1, int g1, int b1, int stripNum1, int r2, int g2, int b2, int stripNum2, int wait) {
-  Adafruit_NeoPixel* strip1;
-
-  switch (stripNum1) {
-    case 270: strip1 = &strip270; break;
-    case 315: strip1 = &strip315; break;
-    case 45: strip1 = &strip45; break;
-    case 225: strip1 = &strip225; break;
-    case 135: strip1 = &strip135; break;
-    case 90: strip1 = &strip90; break;
-    default: return;  // Invalid strip number
-  }
-
-  Adafruit_NeoPixel* strip2;
-
-  switch (stripNum2) {
-    case 270: strip2 = &strip270; break;
-    case 315: strip2 = &strip315; break;
-    case 45: strip2 = &strip45; break;
-    case 225: strip2 = &strip225; break;
-    case 135: strip2 = &strip135; break;
-    case 90: strip2 = &strip90; break;
-    default: return;  // Invalid strip number
-  }
-
+void laserPulse(int color[], Adafruit_NeoPixel *strip) {
   for (int i = 166; i >= 0; i--) {
-    strip1->setPixelColor(i, r1, g1, b1);
-    strip1->show();
-    strip2->setPixelColor(i, r2, g2, b2);
-    strip2->show();
-  }
-}
-
-void colorWipeRing(int r, int g, int b) {
-  for (int i = 0; i < ring.numPixels(); i++) {
-    ring.setPixelColor(i, r, g, b);
-    ring.show();
-  }
-}
-
-void laserPulse(int r, int g, int b, int stripNum, int wait) {
-  Adafruit_NeoPixel* strip;
-
-  switch (stripNum) {
-    case 270: strip = &strip270; break;
-    case 315: strip = &strip315; break;
-    case 45: strip = &strip45; break;
-    case 225: strip = &strip225; break;
-    case 135: strip = &strip135; break;
-    case 90: strip = &strip90; break;
-    default: return;  // Invalid strip number
-  }
-
-  for (int i = 166; i >= 0; i--) {
-    strip->setPixelColor(i, r, g, b);
+    strip->setPixelColor(i, color[0], color[1], color[2]);
     strip->show();
   }
 }
 
-void idle() {
-  colorWipeAll(0, 150, 100);
-  if (breakLoop) { return; }
-  colorWipeAll(170, 50, 0);
-  if (breakLoop) { return; }
-  colorWipeAll(75, 0, 200);
-  if (breakLoop) { return; }
-  colorWipeAll(115, 250, 200);
-  if (breakLoop) { return; }
-  colorWipeAll(170, 0, 50);
-  if (breakLoop) { return; }
-  colorWipeAll(225, 246, 242);
-}
-
-void allClear() {
-  strip45.clear();
-  strip90.clear();
-  strip135.clear();
-  strip225.clear();
-  strip270.clear();
-  strip315.clear();
-  ring.clear();
-  strip45.show();
-  strip90.show();
-  strip135.show();
-  strip225.show();
-  strip270.show();
-  strip315.show();
-  ring.show();
-}
-
-void allWipeClear() {
-  for (int i = 150; i >= 0; i--) {
-    strip45.setPixelColor(i, 0, 0, 0);
-    strip45.show();
-    strip225.setPixelColor(i, 0, 0, 0);
-    strip225.show();
-    strip90.setPixelColor(i, 0, 0, 0);
-    strip90.show();
-    strip270.setPixelColor(i, 0, 0, 0);
-    strip270.show();
-    strip135.setPixelColor(i, 0, 0, 0);
-    strip135.show();
-    strip315.setPixelColor(i, 0, 0, 0);
-    strip315.show();
+void simultaneousPulse(int color1[], Adafruit_NeoPixel *strip1, int color2[], Adafruit_NeoPixel *strip2) {
+  for (int i = 166; i >= 0; i--) {
+    strip1->setPixelColor(i, color1[0], color1[1], color1[2]);
+    strip1->show();
+    strip2->setPixelColor(i, color2[0], color2[1], color2[2]);
+    strip2->show();
   }
-  ring.clear();
-  ring.show();
+}
+
+void colorWipeRing(int color[]) {
+  for (int i = 0; i < numPixels[6]; i++) {
+    stripList[RING]->setPixelColor(i, color[0], color[1], color[2]);
+    stripList[RING]->show();
+  }
+}
+
+void idle() {
+  colorWipeStrips(idleColors[0]);
+  colorWipeStrips(idleColors[1]);
+  colorWipeStrips(idleColors[2]);
+  colorWipeStrips(idleColors[3]);
+  colorWipeStrips(idleColors[4]);
+  colorWipeStrips(idleColors[5]);
+}
+
+/////////////////////////////////////////////////////////////////////
+// Functions to handle state behavior
+/////////////////////////////////////////////////////////////////////
+void colorWipeAllClear() {
+  colorWipeStrips(laserColors[6]);
+  colorWipeRing(laserColors[6]);
+  defaultButtons();
 }
 
 void load() {
-  laserPulse(97, 0, 200, 135, 1);
-  colorWipeRing(97, 0, 200);
-  
-  runButton();
-}
-void initialize() {
-  laserPulse(255, 0, 0, 90, 1);
-  colorWipeRing(255, 0, 0);
-  
-  runButton();
-}
-void cool() {
-  simultaneousPulse(0, 0, 255, 135, 0, 0, 255, 315, 1);
-  colorWipeRing(0, 0, 150);
-  
-  runButton();
-}
-void TQGate() {
-  simultaneousPulse(0, 255, 0, 135, 0, 255, 0, 45, 1);
-  colorWipeRing(0, 255, 0);
-  
-  runButton();
-}
-void SQGate() {
-  laserPulse(0, 255, 0, 225, 1);
-  colorWipeRing(0, 255, 0);
-  
-  runButton();
-}
-void measure() {
-  laserPulse(255, 225, 0, 270, 1);
-  colorWipeRing(255, 225, 0);
-  
-  runButton();
-}
-void runButton() {
-  allWipeClear();
-  delayVar = true;
+  spotlightButton(1);
+  laserPulse(laserColors[0], stripList[STRIP135]);
+  colorWipeRing(laserColors[0]);
+  colorWipeAllClear();
 }
 
+void initialize() {
+  spotlightButton(2);
+  laserPulse(laserColors[1], stripList[STRIP90]);
+  colorWipeRing(laserColors[1]);
+  colorWipeAllClear();
+}
+
+void cool() {
+  spotlightButton(3);
+  simultaneousPulse(laserColors[2], stripList[STRIP135], laserColors[2], stripList[STRIP315]);
+  colorWipeRing(laserColors[2]);
+  colorWipeAllClear();
+}
+
+void TQGate() {
+  spotlightButton(4);
+  simultaneousPulse(laserColors[3], stripList[STRIP135], laserColors[3], stripList[STRIP45]);
+  colorWipeRing(laserColors[3]);
+  colorWipeAllClear();
+}
+
+void SQGate() {
+  spotlightButton(5);
+  laserPulse(laserColors[4], stripList[STRIP225]);
+  colorWipeRing(laserColors[4]);
+  colorWipeAllClear();
+}
+
+void measure() {
+  spotlightButton(6);
+  laserPulse(laserColors[5], stripList[STRIP270]);
+  colorWipeRing(laserColors[5]);
+  colorWipeAllClear();
+}
+
+
+/////////////////////////////////////////////////////////////////////
+// Functions to handle interrupt boolean setting
+/////////////////////////////////////////////////////////////////////
+
 void loadInterrupt() {
-  buttonInterrupt();
-  loadFlag = true;
+  stateChangeRequest = LOAD;
 }
+
 void initializeInterrupt() {
-  buttonInterrupt();
-  initializeFlag = true;
+  stateChangeRequest = INITIALIZE;
 }
+
 void coolInterrupt() {
-  buttonInterrupt();
-  coolFlag = true;
+  stateChangeRequest = COOL;
 }
+
 void TQGateInterrupt() {
-  buttonInterrupt();
-  TQGateFlag = true;
+  stateChangeRequest = TQGATE;
 }
+
 void SQGateInterrupt() {
-  buttonInterrupt();
-  SQGateFlag = true;
+  stateChangeRequest = SQGATE;
 }
+
 void measureInterrupt() {
-  buttonInterrupt();
-  measureFlag = true;
-}
-void buttonInterrupt() {
-  breakLoop = true;
-  clear = true;
-  delayVar = true;
+  stateChangeRequest = MEASURE;
 }
