@@ -8,7 +8,7 @@
 * written permission of Quantinuum LLC.
 *
 *****************************************************************************/
-// Version 1.1.0
+// Version 1.1.0-riken
 
 #include <Adafruit_NeoPixel.h>
 #include <Wire.h>
@@ -23,7 +23,7 @@ const int COOL_PIN = 24;        // 3
 const int TQGATE_PIN = 25;      // 4
 const int SQGATE_PIN = 26;      // 5
 const int MEASURE_PIN = 27;     // 6
-const int BUTTON6_RED_PIN = 9;  // button 6 is wired to different board and requires more pins
+const int BUTTON6_RED_PIN = 9;
 const int BUTTON6_GREEN_PIN = 10;
 const int BUTTON6_BLUE_PIN = 11;
 
@@ -85,7 +85,7 @@ int idleColors[7][3] = {
   { 115, 250, 200 },  // LIGHT GREEN
   { 170, 0, 50 },     // RED
   { 225, 246, 242 },  // PALE GREEN
-  { 170, 170, 170 },  // GREY
+  { 170, 170, 170 },  //GREY
 };
 
 void setup() {
@@ -153,6 +153,7 @@ void loop() {
     case IDLE:
       delay(DELAY);
       colorWipeRing(idleColors[6]);
+      defaultButtons();
       idle();
       break;
     case LOAD:
@@ -160,18 +161,23 @@ void loop() {
       break;
     case INITIALIZE:
       initialize();
+      defaultButtons();
       break;
     case COOL:
       cool();
+      defaultButtons();
       break;
     case SQGATE:
       SQGate();
+      defaultButtons();
       break;
     case TQGATE:
       TQGate();
+      defaultButtons();
       break;
     case MEASURE:
       measure();
+      defaultButtons();
       break;
   }
 
@@ -209,9 +215,9 @@ void setButtonSix(int color[]) {
     pinMode(BUTTON6_RED_PIN, OUTPUT);
     pinMode(BUTTON6_GREEN_PIN, OUTPUT);
     pinMode(BUTTON6_BLUE_PIN, OUTPUT);
-    analogWrite(BUTTON6_RED_PIN, 255-color[0]);
-    analogWrite(BUTTON6_GREEN_PIN, 255-color[1]);
-    analogWrite(BUTTON6_BLUE_PIN, 255-color[2]);
+    analogWrite(BUTTON6_RED_PIN, 255 - color[0]);
+    analogWrite(BUTTON6_GREEN_PIN, 255 - color[1]);
+    analogWrite(BUTTON6_BLUE_PIN, 255 - color[2]);
   }
 }
 
@@ -279,6 +285,27 @@ void idle() {
   colorWipeStrips(idleColors[3]);
   colorWipeStrips(idleColors[4]);
   colorWipeStrips(idleColors[5]);
+  colorWipeAllClear();
+
+  if (stateChangeRequest != NONE) { return; }
+  load();
+  if (stateChangeRequest != NONE) { return; }
+  delay(DELAY);
+  initialize();
+  if (stateChangeRequest != NONE) { return; }
+  delay(DELAY);
+  cool();
+  if (stateChangeRequest != NONE) { return; }
+  delay(DELAY);
+  TQGate();
+  if (stateChangeRequest != NONE) { return; }
+  delay(DELAY);
+  SQGate();
+  if (stateChangeRequest != NONE) { return; }
+  delay(DELAY);
+  measure();
+  if (stateChangeRequest != NONE) { return; }
+  delay(DELAY);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -287,12 +314,11 @@ void idle() {
 void colorWipeAllClear() {
   colorWipeStrips(laserColors[6]);
   colorWipeRing(laserColors[6]);
-  defaultButtons();
 }
 
 void load() {
   spotlightButton(1);
-  laserPulse(laserColors[0], stripList[STRIP135]);
+  laserPulse(laserColors[0], stripList[STRIP270]);
   colorWipeRing(laserColors[0]);
   colorWipeAllClear();
 }
@@ -306,28 +332,28 @@ void initialize() {
 
 void cool() {
   spotlightButton(3);
-  simultaneousPulse(laserColors[2], stripList[STRIP135], laserColors[2], stripList[STRIP315]);
+  simultaneousPulse(laserColors[2], stripList[STRIP45], laserColors[2], stripList[STRIP225]);
   colorWipeRing(laserColors[2]);
   colorWipeAllClear();
 }
 
 void TQGate() {
   spotlightButton(4);
-  simultaneousPulse(laserColors[3], stripList[STRIP135], laserColors[3], stripList[STRIP45]);
+  simultaneousPulse(laserColors[3], stripList[STRIP225], laserColors[3], stripList[STRIP315]);
   colorWipeRing(laserColors[3]);
   colorWipeAllClear();
 }
 
 void SQGate() {
   spotlightButton(5);
-  laserPulse(laserColors[4], stripList[STRIP225]);
+  laserPulse(laserColors[4], stripList[STRIP135]);
   colorWipeRing(laserColors[4]);
   colorWipeAllClear();
 }
 
 void measure() {
   spotlightButton(6);
-  laserPulse(laserColors[5], stripList[STRIP270]);
+  laserPulse(laserColors[5], stripList[STRIP90]);
   colorWipeRing(laserColors[5]);
   colorWipeAllClear();
 }

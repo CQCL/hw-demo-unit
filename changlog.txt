@@ -1,5 +1,9 @@
 Change log for HW Demonstrator
 
+2025-08-26 v1.1.0-riken
+- Updated idling behavior
+- Updated which lasers are used for each gate
+
 2025-08-26 v1.1.0
 - Button matches laser and other buttons turn off when pressed
 - Refactored code
