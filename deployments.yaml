@@ -1,7 +1,6 @@
 # Software deployment tracking file
-# Updates are committed with each new deployment.
 
-# Hardware Cluster 1
+# Demo Units
 H2_S03:
   HWDemonstrator:
     software: "1.1.0-riken"
