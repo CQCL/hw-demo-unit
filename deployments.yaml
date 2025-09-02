@@ -1,8 +1,57 @@
 # Software deployment tracking file
 
 # Demo Units
+Helios_S01:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
+Helios_S02:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
+Helios_S03:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
+Helios_S04:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
+Helios_S05:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
+Helios_S06:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"    
+
+Helios_S07:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"      
+
+H2_S01:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
+H2_S02:
+  HWDemonstrator:
+    software: "v1.0.0"
+    last_deployed: "2025-08-15"
+
 H2_S03:
   HWDemonstrator:
     software: "1.1.0-riken"
     last_deployed: "2025-08-26"
 
+H2_Home:
+  HWDemonstrator:
+    software: "v1.1.0"
+    last_deployed: "2025-08-29"
